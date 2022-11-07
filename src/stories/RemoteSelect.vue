@@ -12,14 +12,15 @@
   >
     <el-option
       v-for="item in list"
-      :key="item.value"
-      :label="item.label"
-      :value="item.value"
+      :key="item[valueKey]"
+      :label="item[labelKey]"
+      :value="item[valueKey]"
     />
   </el-select>
 </template>
 
 <script>
+let templateList = [];
 import axios from "axios";
 export default {
   name: "remote-select",
@@ -31,13 +32,22 @@ export default {
     requestType: {
       type: String,
       required: true,
+      default: "GET",
     },
-    disabled: { type: Boolean, default: false },
     multiple: {
       type: Boolean,
       default: false,
     },
-    setSelectValue: Function,
+    disabled: { type: Boolean, default: false },
+    labelKey: {
+      type: String,
+      default: "label",
+    },
+    valueKey: {
+      type: String,
+      default: "value",
+    },
+    setSelectValue: { type: Function },
   },
   data() {
     return {
@@ -64,13 +74,12 @@ export default {
           } else if (this.requestType === "POST") {
             res = await axios({
               method: "POST",
-              url: this.requestUrl,
+              url: this.requestUrl + "?key=" + key,
               data: {
                 key,
               },
             });
           }
-          this.list = res.data.data;
           this.loading = false;
         } catch {
           this.loading = false;
@@ -81,11 +90,18 @@ export default {
     handleChange(val) {
       if (val) {
         if (!this.multiple) {
-          const label = this.list.filter((item) => item.value === val);
-          const reqVal = [label[0].label, val];
+          const label = this.list.filter((item) => item[this.valueKey] === val);
+          const reqVal = [label[0][this.labelKey], val];
           this.$emit("setSelectValue", reqVal);
         } else {
-          this.$emit("setSelectValue", val);
+          const selectList = templateList.concat(this.list);
+          templateList = selectList;
+          const label = val.map((item) => {
+            return selectList.filter(
+              (item2) => item2[this.valueKey] === item
+            )[0][this.labelKey];
+          });
+          this.$emit("setSelectValue", [label, val]);
         }
       } else {
         this.$emit("setSelectValue", [null, null]);
@@ -94,6 +110,10 @@ export default {
 
     setValue(val) {
       this.value = val;
+    },
+
+    clearTemplateList() {
+      templateList = [];
     },
   },
 };
